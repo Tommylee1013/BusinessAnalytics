@@ -1,0 +1,43 @@
+---
+title: "palmerpenguins"
+author: "tommy lee"
+date: "2023-09-13"
+output: html_document
+---
+
+### Palmer Penguins
+
+남극의 palmer island의 펭귄의 종류를 연구한 데이터이다. 전체 344마리를 대상으로 조사한 데이터이다
+
+```{r}
+library(palmerpenguins)
+```
+
+Palmer Penguins 데이터의 가장 큰 특징은 결측치가 존재한다는 것이다
+
+```{r}
+View(penguins)
+```
+
+`na.omit()`함수를 사용하면 결측치를 제거할 수 있다
+
+```{r}
+pengs = na.omit(penguins)
+dim(pengs)
+```
+
+```{r}
+names(pengs)
+```
+```{r}
+library(dplyr)
+pengs['species'] %>% unique()
+```
+
+```{r}
+library(tidyr)
+pengs %>%
+  group_by(species, sex) %>%
+  summarise(n = n()) %>%
+  pivot_wider(names_from = sex, values_from = n)
+```
