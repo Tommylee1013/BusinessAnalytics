@@ -29,6 +29,7 @@ dim(pengs)
 ```{r}
 names(pengs)
 ```
+
 ```{r}
 library(dplyr)
 pengs['species'] %>% unique()
@@ -41,3 +42,5 @@ pengs %>%
   summarise(n = n()) %>%
   pivot_wider(names_from = sex, values_from = n)
 ```
+
+library tidyr을 사용하면 된다
