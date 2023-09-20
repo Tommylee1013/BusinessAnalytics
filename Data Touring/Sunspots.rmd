@@ -1,0 +1,66 @@
+---
+title: "R Notebook"
+output: html_document
+---
+
+### Sunspots data
+
+R에는 Sunspots 데이터로 태양 흑점 개수를 기록한 자료가 포함되어 있다
+```{r}
+?sunspots # help(sunspots)와 동일한 기능을 한다
+```
+- 1794년부터 1995년 까지는 스위스 연방 관측소에서 관측한 자료
+- 1960년 이후에는 도쿄천문대에서 관측한 자료에서 수집하였다
+```{r}
+print(class(sunspots))
+print(tsp(sunspots))
+```
+1983.917의 표기법은 index가 하나씩 앞당겨졌기 때문이다
+```{r}
+attributes(sunspots)
+```
+```{r}
+library(tidyverse)
+
+xt = 1749 +((1:2820) - 1)/12
+spots = sunspots
+
+pp = ggplot() +
+        geom_point(aes(xt, spots), size = 0.4)+
+        xlab('time(year)')+
+        ylab('monthly average no sunspots')
+pp
+```
+**장점**
+- 오랜 기간동안 굉장히 꾸준하게 수집된 데이터이다
+
+**단점**
+- 분석하기 굉장히 까다로운 시계열 데이터이다
+- 주기성을 단정하기 어렵다
+
+```{r}
+result = loess(spots~xt, span = 0.2)
+ppr = pp +
+  geom_line(aes(xt, predict(result)), col = 'red')
+ppr
+```
+주기(span)를 알맞게 설정하면 아래와 같이 그릴 수 있다
+```{r}
+result = loess(spots~xt, span = 36/2820)
+ppr = pp +
+  geom_line(aes(xt, predict(result)), col = "red", linewidth = 0.4)
+ppr
+```
+점들을 모두 선으로 이어 보자
+```{r}
+ppr = pp +
+  geom_line(aes(xt, predict(result)), col = "red", linewidth = 0.4)
+ppr
+```
+**회귀선에 대한 고찰**
+- 초창기, 회귀선을 예측하기 위해서 KNN을 사용하였다. 즉, 가장 가까운 관측치들끼리의 평균을 구하여 추정하는 방식이다
+- $\frac{h}{2}$만큼 window를 생성하여 prediction을 생성한다 -> NK smoother?
+- 최근에는 Kernel Smoothing이란 방법을 사용한다
+  - 추정하고 싶은 값에 가까워질수록 가중치를 높이면 추정이 훨씬 수월해질 것이다
+
+$$\hat y(t_i) = \sum_{j=1}^n \omega(t_i, t_j) y_j$$
