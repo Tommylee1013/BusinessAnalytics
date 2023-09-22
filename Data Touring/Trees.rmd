@@ -1,0 +1,117 @@
+### Trees Data
+
+- 체리나무 31그루에 대하여 Girth(땅에서 일정 높이 떨어진 지점에서 측정한 테두리), Height(나무의 높이), Volume(부피) 세 변수를 측정한 자료
+- trees 데이터 설명 : `help(trees)`
+```{r}
+help(trees)
+```
+- trees 데이터에서 세 변수 사이의 관계를 탐색해 보자
+```{r}
+library(GGally)
+
+ggpairs(trees, lower = list(continuous = wrap('smooth', method = 'loess', col = 'red')))
+```
+#### 1. MARS를 이용한 평활 방법들
+- **GAM** : Generalized Additive Model
+- **MARS** : Multivariate Adaptive Regression Splines
+- mda package
+  - mda : Mixture and flexible Discrimnant Analysis
+  - Originated from Hastie & Tibshirani
+  - Useful functions : mars, fda, gen.ridge
+
+#### 2. MARS 수행 R Packages
+- **mda::mars**, by Hastie & Tibshirani
+- **earth::earth**, by Stephen Milborrow
+```{r}
+library(mda)
+library(earth)
+
+xx = model.matrix(Volume~.-1, data = trees)
+y = trees$Volume
+result = mars(xx, y, degree = 2)
+
+coef(result)
+```
+earth의 장점 : 평활화하는데 수식을 제공해 주는 것이 장점이다
+```{r}
+rex = earth(Volume ~ ., trees, degree = 2)
+summary(rex, style = 'pmax')
+```
+- `pmax(0, x)` 는 ReLU함수라고 할 수 있다. hinge function이라고도 한다
+
+#### 3. 결과의 비교
+
+- expand.grid 함수를 이용하여 관심 영역에 대한 3x3 격자점을 구성
+```{r}
+gsn = seq(min(trees$Girth, max(trees$Girth)), l = 3)
+hsn = seq(min(trees$Girth, max(trees$Girth)), l = 3)
+(egh = expand.grid(g = gsn, h = hsn))
+```
+- egh 의 9 개 격자점에 대한 예측값
+  - mda::mars 에 대한 함수 predict.mars
+  - earth::earth 에 대한 함수 predict.earth
+- earth::earth 와 mda::mars 는 비슷하지만 다른 수치를 제공한다
+```{r}
+prd.mars = predict(result, new = egh)
+prd.earth = predict(rex, new = egh)
+
+cbind(prd.mars, prd.earth)
+```
+#### 4. 추정함수평면의 시각적 표현
+- plotly 패키지에 의한 대화형 3차원 그림
+- egh 를 30x30 격자점으로 구성
+- `prd.mars` : egh 격자점들에 대하여 mda::mars 로부터 얻은 예측값
+- `prd.earth` : egh 격자점들에 대하여 earth::earth 로부터 얻은 예측값
+
+mars를 통해 평면을 추정할 수 있다. earth에서는 추정식까지 알려주기까지 한다
+```{r}
+gsn = seq(min(trees$Girth),max(trees$Girth),l = 30)
+hsn = seq(min(trees$Height),max(trees$Height),l = 30)
+egh = expand.grid(g=gsn,h=hsn)
+
+prd.mars = matrix(predict(result, new = egh), length(gsn), length(hsn))
+prd.earth = matrix(predict(rex, new = egh),length(gsn),length(hsn))
+```
+mda::mars 에 의하여 얻은 추정함수평면
+```{r}
+library(plotly)
+
+pp <- plot_ly(z = ~t(prd.mars), x = gsn, y = hsn)
+pp <- add_surface(pp)
+pp <- add_markers(pp, x = ~trees$Girth, y = ~trees$Height, z = ~trees$Volume, size = 0.8)
+layout(pp, title = 'Model surface and observations',
+
+       scene = list(xaxis = list(title = 'Grith'),
+                    yaxis = list(title = 'Height'),
+                    zaxis = list(title = 'Volume')
+       )
+)
+```
+earth::earth 에 의하여 얻은 추정함수평면
+- 추정함수평면은 mda::mars 와 earth::earth 경우 큰 차이가 없다
+```{r}
+pp <- plotly::plot_ly(z = ~t(prd.earth), x = gsn, y = hsn)
+pp <- plotly::add_surface(pp)
+pp <- plotly::add_markers(pp, x = ~trees$Girth,
+                          y = ~trees$Height,
+                          z = ~trees$Volume,
+                          size = 0.8)
+plotly::layout(pp, title = 'Model surface and observations',
+               scene = list(xaxis = list(title = 'Girth'),
+                            yaxis = list(title = 'Height'),
+                            zaxis = list(title = 'Volume')
+               )
+)
+```
+- factor analysis : unobserved expalinable variables
+- regression : observed explainable variables
+- 두 집단간 비교 모형
+
+$$y = \alpha + \beta X + \epsilon$$
+
+- 비교집단이 세 개 이상인 경우를 ANOVA라고 한다
+- 각 집단의 평균이 달라지는 것에 초점을 맞춘다
+
+$$y = \alpha + \beta X + \epsilon, ~~~~~ X \in {0,1,2,\cdots}$$
+
+- T-test에서는 분산이 같다는 가정이 없다, 그러나 ANOVA에서는 분산이 같다는 가정이 존재한다

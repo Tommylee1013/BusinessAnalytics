@@ -72,43 +72,4 @@ $$\omega(t_i, t_j) = \exp ^{-||t_i - t_j||^2}$$
 
 R에서 loess함수가 위와 같은 과정을 진행해 준다. argument `span`가 크면 클수록 지역적 특성이 잘 반영되지 않는다
 
-### Trees Data
-
-- 체리나무 31그루에 대하여 Girth(땅에서 일정 높이 떨어진 지점에서 측정한 테두리), Height(나무의 높이), Volume(부피) 세 변수를 측정한 자료
-- trees 데이터 설명 : `help(trees)`
-
-```{r}
-help(trees)
-```
-- trees 데이터에서 세 변수 사이의 관계를 탐색해 보자
-```{r}
-library(GGally)
-
-ggpairs(trees, lower = list(continuous = wrap('smooth', method = 'loess', col = 'red')))
-```
-#### 1. MARS를 이용한 평활 방법들
-- **GAM** : Generalized Additive Model
-- **MARS** : Multivariate Adaptive Regression Splines
-- mda package
-  - mda : Mixture and flexible Discrimnant Analysis
-  - Originated from Hastie & Tibshirani
-  - Useful functions : mars, fda, gen.ridge
-
-#### 2. MARS 수행 R Packages
-- **mda::mars**, by Hastie & Tibshirani
-- **earth::earth**, by Stephen Milborrow
-```{r}
-library(mda)
-library(earth)
-
-xx = model.matrix(Volume~.-1, data = trees)
-y = trees$Volume
-result = mars(xx, y, degree = 2)
-
-coef(result)
-```
-earth의 장점 : 평활화하는데 수식을 제공해 주는 것이 장점이다
-```{r}
-rex = earth(Volume ~ ., trees, degree = 2)
-summary(rex, style = 'pmax')
 ```
