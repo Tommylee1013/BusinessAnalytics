@@ -1,0 +1,175 @@
+### Data Touring 3
+
+- data
+  - Iris, Penguins
+  - MNIST, CIFAR10, CIFAR100
+  - Sunspots, Trees, Faithful
+  - Pima, Crab, Olive, Donut, Kyphosis
+  - Diamonds, Starwars, GoogleStockPrice
+  - Gapminder, MovieLense
+
+```{r}
+library(tidyverse)
+```
+#### MovieLense Data
+
+추천 시스템에서 예제로 가장 많이 사용되는 데이터가 MovieLense Data이다
+```{r}
+url = "http://files.grouplens.org/datasets/movielens/ml-1m.zip"
+
+a_file = 'movielens.zip'
+download.file(url, a_file)
+```
+data set은 (users, ratings, movies)로 총 세 개로 구성되어 있다
+```{r}
+temp = readLines( unz( a_file, "ml-1m/users.dat") )
+us_tbl = as_tibble(str_split_fixed(temp,"::",5), .name_repair="minimal")
+names(us_tbl) = c( "us_idn", "sex", "age", "occ", "zip")
+
+temp = readLines( unz( a_file, "ml-1m/ratings.dat") )
+rt_tbl = as_tibble(str_split_fixed(temp,"::",4), .name_repair="minimal")
+names(rt_tbl)   = c("us_idn", "mv_idn", "rt", "r_time")
+
+temp   = readLines( unz( a_file, "ml-1m/movies.dat") )
+mv_tbl = as_tibble(str_split_fixed(temp,"::",3), .name_repair="minimal")
+names(mv_tbl) = c( "mv_idn", "title", "genres")
+
+unlink(a_file)
+```
+- Number of users : 6040
+- Number of Movies : 3706 (rated), 3883 (listed), 1-3952 (ID)
+```{r}
+us_tbl$us_idn  = as.integer(us_tbl$us_idn)
+us_tbl$age     = as.integer(us_tbl$age)
+us_tbl$occ     = as.integer(us_tbl$occ)
+
+rt_tbl$us_idn  = as.integer(rt_tbl$us_idn)
+rt_tbl$mv_idn  = as.integer(rt_tbl$mv_idn)
+rt_tbl$rt      = as.integer(rt_tbl$rt)
+
+mv_tbl$mv_idn  = as.integer(mv_tbl$mv_idn)
+```
+```{r}
+nrow(rt_tbi)
+```
+
+
+```{r}
+rt_tbl %>% group_by(us_idn) %>% summarise() %>% nrow()
+```
+위 코드를 사용하면 rating에 참여한 사용자의 수를 볼 수 있다
+
+사용자와 영화 쌍에 중복이 있는지 확인해 보자
+```{r}
+tbl = rt_tbl %>% group_by(us_idn, mv_idn) %>% summarise(n = n())
+```
+```{r}
+tbl %>% group_by(n) %>% summarise(nn = n())
+```
+데이터가 우리가 생각하는것과 정확하지 않으면 결과가 제대로 나오지 않을 수 있다
+
+각 사용자별로 영화를 본 횟수, 많이 본 순서로 정렬, 적게 본 순서로 정렬한다
+```{r}
+rt_tbl %>%
+  group_by(us_idn) %>% # 사용자별로 summarise를 통해 결과를 통합해 준다
+  summarise(n=n())  %T>% # print는 return값이 없기 때문에, T를 이용해 분기를 해 주어 그 다음 method로 넘긴다
+  print %>%
+  arrange(desc(n)) %T>%
+  print %>%
+  arrange(n)
+```
+가장 많이 평가된 영화 50개에 대한 정보
+```{r}
+rt_tbl %>%
+  group_by(mv_idn)  %>% # 영화의 아이디, 즉 영화제목
+  summarise(n=n())  %>% # 몇명의 사용자가 평가하였는가
+  arrange(desc(n))  %>% # 내림차순정렬
+  .[1:50,]  %>%
+  inner_join(mv_tbl, by = "mv_idn") # 영화에 대한 정보에 join을 해달라
+```
+동일 사용자가 본 영화들의 순서 구하기
+```{r}
+rt_tbl %>%
+  arrange(us_idn, r_time, mv_idn) %>%
+  group_by(us_idn) %>%
+  reframe(across(mv_idn:r_time),
+          mv_ord = row_number()) # row_number keyword를 통해 정렬 가능하다
+```
+
+많이 평가된 영화 순서로 영화 아이디 부여하기, mv_idf. 즉 평가 횟수가 큰 순서대로 번호를 부여한다
+
+```{r}
+mvf_tbl  = rt_tbl  %>%
+  group_by(mv_idn) %>%
+  summarise(mv_fq = n()) %>%
+  arrange(desc(mv_fq))   %>%
+  mutate( mv_idf = row_number() )
+
+mvf_tbl
+```
+많이 평가한 사용자 순서로 사용자 아이디 부여하기, us_idf
+```{r}
+usf_tbl  = rt_tbl %>%
+  group_by(us_idn) %>%
+  summarise( us_fq = n() ) %>%
+  arrange( desc(us_fq) ) %>%
+  mutate( us_idf = row_number() )
+
+
+usf_tbl
+```
+rt_tbl 에, mv_fq, mv_idf, us_fq, us_idf 추가 하기 (rtf_tbl)
+```{r}
+rtf_tbl  = rt_tbl %>%
+  inner_join( mvf_tbl, by="mv_idn") %>%
+  inner_join( usf_tbl, by="us_idn")
+
+rtf_tbl
+```
+rt_tbl 에서, mv_idn, us_idn 대신 mv_idf, us_idf 를 대입하기 (rts_tbl)
+```{r}
+rts_tbl =  rtf_tbl %>%
+  select(us_idf, mv_idf, rt, r_time ) %>%
+  arrange(us_idf, mv_idf) %T>%
+  print %>%
+  filter( us_idf <= 500, mv_idf <= 500 ) %>%
+  arrange(us_idf, mv_idf)
+```
+
+rtf_tbl 에서, mv_idn, us_idn 에 대한 rt 보기
+
+```{r}
+rtf_tbl %>%
+  ggplot()+
+  geom_point(aes(x = us_idn, y = mv_idn,
+                 col = factor(rt)),
+             alpha=0.3, size=0.2)+
+  scale_color_brewer(palette = "RdBu")
+```
+rtf_tbl 에서, mv_idf, us_idf 에 대한 rt 보기
+```{r}
+rtf_tbl %>%
+  ggplot()+
+  geom_point(aes(x = us_idf, y = mv_idf,
+                 col = factor(rt)),
+             alpha = 0.3, size = 0.2)+
+  scale_color_brewer(palette = "RdBu")
+```
+**색깔을 바꾸는 것만으로도 데이터의 특징을 발견할 수도 있다**
+```{r}
+rtf_tbl %>%
+  arrange( us_idn, mv_idn)
+```
+사용자 x 영화 평면에서 rt 표 구성하기 (us_idn, mv_idn)
+```{r}
+rtf_tbl %>%
+  arrange( us_idn, mv_idn) %>%
+  select(  us_idn, mv_idn, rt ) %>%
+  pivot_wider(names_from = mv_idn,
+              values_from = rt,
+              values_fill = 0)
+```
+
+#### Generating many variables automatically
+
+`mutate()`는 새로운 변수를 만들어주는 method라고 할 수 있다
