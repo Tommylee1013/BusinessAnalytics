@@ -1,0 +1,117 @@
+### Gapminder
+
+```{r}
+library(tidyverse)
+library(gganimate)
+```
+```{r}
+theme_set(theme_bw())
+
+library(gapminder)
+head(gapminder)
+```
+
+### Gapminder data
+
+scale이란 그림에 표현된 양적 요인들 (점의 크기, 점의 색상, 점의 좌표 등등)
+
+데이터의 요소와 scale을 연결해주는 작업을 aesthetic이라고 한다.
+
+```{r}
+p <- ggplot(
+  gapminder,
+  aes(x = gdpPercap, y = lifeExp, size = pop, color = country)) +
+  geom_point(show.legend = FALSE, alpha = 0.7) +
+  scale_color_viridis_d() +
+  scale_size(range = c(2, 12)) +
+  scale_x_log10() +
+  labs(x = 'GDP per capita', y = 'Life expectancy')
+
+p
+```
+```{r}
+p + transition_time(year) + labs(title = 'Year: {frame_time}')
+```
+
+gridExtra, patchwork, facet_grid, facet_wrap
+
+```{r}
+p + facet_wrap(~continent) +
+  transition_time(year) +
+  labs(title = "Year: {frame_time}")
+```
+
+```{r}
+p + transition_time(year) +
+  labs(title = "Year: {frame_time}") +
+  view_follow(fixed_y = TRUE)
+```
+
+```{r}
+p + transition_time(year) +
+  labs(title = "Year: {frame_time}") +
+  shadow_wake(wake_length = 0.1, alpha = FALSE)
+```
+
+```{r}
+p + transition_time(year) +
+  labs(title = "Year: {frame_time}") +
+  shadow_mark(alpha = 0.3, size = 0.5)
+```
+
+### Airquality Data
+
+```{r}
+p <- ggplot(
+  airquality,
+  aes(Day, Temp, group = Month, color = factor(Month))
+  ) +
+  geom_line() +
+  scale_color_viridis_d() +
+  labs(x = "Day of Month", y = "Temperature") +
+  theme(legend.position = "top")
+p
+```
+```{r}
+p + transition_reveal(Day)
+```
+```{r}
+p +
+  geom_point() +
+  transition_reveal(Day)
+```
+```{r}
+p +
+  geom_point() +
+  transition_reveal(Day)
+```
+```{r}
+library(dpylr)
+
+mean.temp <- airquality %>%
+  group_by(Month) %>%
+  summarise(Temp = mean(Temp))
+mean.temp
+```
+```{r}
+p <- ggplot(mean.temp, aes(Month, Temp, fill = Temp)) +
+  geom_col() +
+  scale_fill_distiller(palette = "Reds", direction = 1) +
+  theme_minimal() +
+  theme(
+    panel.grid = element_blank(),
+    panel.grid.major.y = element_line(color = "white"),
+    panel.ontop = TRUE
+  )
+p
+```
+```{r}
+p + transition_states(Month, wrap = FALSE) +
+  shadow_mark()
+```
+```{r}
+p + transition_states(Month, wrap = FALSE) +
+  shadow_mark() +
+  enter_grow() +
+  enter_fade()
+```
